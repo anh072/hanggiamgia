@@ -6,9 +6,9 @@ from wtforms.validators import DataRequired
 create_post_schema = {
     "type": "object",
     "properties": {
-        "start_date": { "type": "string", "format": "date" },
-        "end_date": { "type": "string", "format": "date" },
-        "title": { "type": "string" },
+        "start_date": { "type": "string", "format": "date", "minLength": 1 },
+        "end_date": { "type": "string", "format": "date", "minLength": 1 },
+        "title": { "type": "string", "minLength": 1 },
         "category": { 
             "type": "string", 
             "enum": ["Books and Magazines", "Entertainment", "Electronics", "Food and Beverage", "Clothing", "Health and Beauty"] 
@@ -28,14 +28,31 @@ class CreatePostInput(Inputs):
     json = [JsonSchema(schema=create_post_schema)]
 
 
-create_comment_input = {
+create_comment_schema = {
     "type": "object",
     "properties": {
-        "text": { "type": "string" }
+        "text": { "type": "string", "minLength": 1 }
     },
     "required": ["text"]
 }
 
 
 class CreateCommentInput(Inputs):
-    json = [JsonSchema(schema=create_comment_input)]
+    json = [JsonSchema(schema=create_comment_schema)]
+
+
+search_posts_schema = {
+    "type": "object",
+    "properties": {
+        "category": { 
+            "type": "string",  
+            "enum": ["All", "Books and Magazines", "Entertainment", "Electronics", "Food and Beverage", "Clothing", "Health and Beauty"]
+        },
+        "key": { "type": "string", "minLength": 1 }
+    },
+    "required": ["key", "category"]
+}
+
+
+class SearchPostInput(Inputs):
+    json = [JsonSchema(schema=search_posts_schema)]

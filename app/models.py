@@ -2,8 +2,12 @@ from datetime import datetime
 
 from flask import url_for
 import json
+import pytz
 
 from . import db
+
+
+local_timezone = pytz.timezone("Asia/Ho_Chi_Minh")
 
 
 class Category(db.Model):
@@ -63,7 +67,7 @@ class Post(db.Model):
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
     description = db.Column(db.Text)
-    created_time = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    created_time = db.Column(db.DateTime, index=True, default=datetime.now(tz=local_timezone))
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"))
     category = db.relationship("Category", backref="posts")
     comments = db.relationship("Comment", backref="post", lazy="dynamic")
