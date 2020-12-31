@@ -7,6 +7,9 @@ class Config:
     SLOW_DB_QUERY_TIME = 0.5
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    MAX_CONTENT_LENGTH = 1024*1024
+    UPLOAD_EXTENSIONS = ["jpg", "png", "jpeg"]
+    AWS_REGION = "ap-southeast-2"
 
     def init_app(self, app):
         import logging
@@ -19,10 +22,11 @@ class Config:
 
 
 class DevelopmentConfig(Config):
-    pass
+    S3_IMAGE_BUCKET = "hanggiamgia"
 
 class ProductionConfig(Config):
     POSTS_PER_PAGE = 50
+    S3_IMAGE_BUCKET = "hanggiamgia"
 
 
 config = {

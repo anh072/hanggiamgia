@@ -56,3 +56,19 @@ search_posts_schema = {
 
 class SearchPostInput(Inputs):
     json = [JsonSchema(schema=search_posts_schema)]
+
+
+update_post_vote_schema = {
+    "type": "object",
+    "properties": {
+        "vote_action": { 
+            "type": "string",  
+            "enum": ["increment", "decrement"]
+        }
+    },
+    "required": ["vote_action"]  
+}
+
+
+class UpdatePostVoteInput(Inputs):
+    json = [JsonSchema(schema=update_post_vote_schema)]

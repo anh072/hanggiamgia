@@ -10,4 +10,4 @@ def after_request(response):
             current_app.logger.warning(f"Slow query: {query.statement}, Parameters: {query.parameters}, Duration: {query.duration}, Context: {query.context}")
     return response
 
-from . import posts, comments, errors, validations
+from . import users, posts, comments, errors, validations

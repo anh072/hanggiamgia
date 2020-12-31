@@ -62,13 +62,15 @@ class Post(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     author = db.Column(db.String(100), nullable=False)
     title = db.Column(db.String(200))
-    url = db.Column(db.String(200))
+    url = db.Column(db.String(500))
+    image_url = db.Column(db.String(500))
     coupon_code = db.Column(db.String(20))
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
     description = db.Column(db.Text)
     created_time = db.Column(db.DateTime, index=True, default=datetime.now(tz=local_timezone))
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"))
+    votes = db.Column(db.Integer, default=0)
     category = db.relationship("Category", backref="posts")
     comments = db.relationship("Comment", backref="post", lazy="dynamic")
 
@@ -84,7 +86,9 @@ class Post(db.Model):
             "category": self.category.name,
             "description": self.description,
             "comment_count": self.comments.count(),
-            "author": self.author
+            "author": self.author,
+            "image_url": self.image_url,
+            "votes": self.votes
         }
 
     @staticmethod
@@ -97,6 +101,15 @@ class Post(db.Model):
             category_id=category.id,
             description=json_post.get("description"),
             url=json_post.get("url"),
-            coupon_code=json_post.get("coupon_code")
+            coupon_code=json_post.get("coupon_code"),
+            image_url=json_post.get("image_url")
         )
         return new_post
+
+
+class Image(db.Model):
+    __tablename__ = "images"
+
+    id = db.Column(db.Integer, primary_key=True)
+    image_url = db.Column(db.String(500), nullable=False)
+    author = db.Column(db.String(100), index=True, nullable=False)

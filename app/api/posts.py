@@ -5,7 +5,7 @@ from . import api
 from ..models import Post, Category
 from .. import db
 from .errors import bad_request, forbidden
-from .validations import CreatePostInput, SearchPostInput
+from .validations import CreatePostInput, SearchPostInput, UpdatePostVoteInput
 
 
 @api.route("/posts", methods=["GET"])
@@ -77,6 +77,25 @@ def edit_post(id):
     if editor != post.author:
         return forbidden(f"{editor} is not the post's owner")
     post.text = request.json.get("text", post.text)
+    db.session.add(post)
+    db.session.commit()
+    return jsonify(post.to_json())
+
+
+@api.route("/posts/<int:id>/votes", methods=["PUT"])
+def update_post_votes(id):
+    current_app.logger.info(f"Updating vote count for post {id}")
+    post = Post.query.get_or_404(id)
+
+    validator = UpdatePostVoteInput(request)
+    if not validator.validate():
+        return bad_request(validator.errors)
+    
+    if action == "increment":
+        post.votes += 1
+    else:
+        if post.votes > 0:
+            post.votes -= 1
     db.session.add(post)
     db.session.commit()
     return jsonify(post.to_json())
