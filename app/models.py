@@ -45,6 +45,7 @@ class Comment(db.Model):
 
     def to_json(self):
         return {
+            "id": self.id,
             "author": self.author,
             "created_time": self.created_time,
             "text": self.text,
@@ -76,6 +77,7 @@ class Post(db.Model):
 
     def to_json(self):
         return {
+            "id": self.id,
             "url": url_for("api.get_post", id=self.id),
             "coupon_code": self.coupon_code,
             "product_url": self.url,

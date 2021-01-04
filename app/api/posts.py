@@ -1,10 +1,11 @@
 from flask import jsonify, request, current_app, url_for
 from sqlalchemy import and_
+from sqlalchemy.exc import SQLAlchemyError
 
 from . import api
 from ..models import Post, Category
 from .. import db
-from .errors import bad_request, forbidden
+from .errors import bad_request, forbidden, not_found, internal_error
 from .validations import CreatePostInput, SearchPostInput, UpdatePostVoteInput
 
 
@@ -62,8 +63,13 @@ def create_post():
     if not author:
         return bad_request("Missing username header")
     post.author = author
-    db.session.add(post)
-    db.session.commit()
+    try:
+        db.session.add(post)
+        db.session.commit()
+    except SQLAlchemyError as e:
+        current_app.logger.error(e)
+        db.session.rollback()
+        return internal_error("Encounter unexpected error")
     return jsonify(post.to_json()), 201, \
         {'Location': url_for('api.get_post', id=post.id)}
 
@@ -71,33 +77,46 @@ def create_post():
 @api.route("/posts/<int:id>", methods=["PUT"])
 def edit_post(id):
     current_app.logger.info(f"Editing post {id}")
-    post = Post.query.get_or_404(id)
-
     editor = request.headers.get("username")
-    if editor != post.author:
-        return forbidden(f"{editor} is not the post's owner")
-    post.text = request.json.get("text", post.text)
-    db.session.add(post)
-    db.session.commit()
+
+    try:
+        post = Post.query.get_or_404(id)
+        if editor != post.author:
+            return forbidden(f"{editor} is not the post's owner")
+        post.text = request.json.get("text", post.text)
+        db.session.add(post)
+        db.session.commit()
+    except SQLAlchemyError as e:
+        current_app.logger.error(r)
+        db.session.rollback()
+        return internal_error("Encounter unexpected error")
     return jsonify(post.to_json())
 
 
 @api.route("/posts/<int:id>/votes", methods=["PUT"])
 def update_post_votes(id):
     current_app.logger.info(f"Updating vote count for post {id}")
-    post = Post.query.get_or_404(id)
 
     validator = UpdatePostVoteInput(request)
     if not validator.validate():
         return bad_request(validator.errors)
     
-    if action == "increment":
-        post.votes += 1
-    else:
-        if post.votes > 0:
+    try:
+        post = Post.query.with_for_update(of=Post).filter(Post.id=id).first()
+        if not post:
+            return not_found("Post is not found")
+        
+        action = request.json.get("vote_action")
+        if action == "increment":
+            post.votes += 1
+        else:
             post.votes -= 1
-    db.session.add(post)
-    db.session.commit()
+        db.session.add(post)
+        db.session.commit()
+    except SQLAlchemyError as e:
+        current_app.logger.error(e)
+        db.session.rollback()
+        return internal_error("Encounter unexpected error")
     return jsonify(post.to_json())
 
 
