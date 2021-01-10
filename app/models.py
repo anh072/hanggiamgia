@@ -39,7 +39,7 @@ class Comment(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     author = db.Column(db.String(80), nullable=False)
-    created_time = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    created_time = db.Column(db.DateTime, index=True, default=datetime.now(tz=local_timezone))
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"))
     text = db.Column(db.Text, nullable=False)
 
@@ -115,3 +115,60 @@ class Image(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     image_url = db.Column(db.String(500), nullable=False)
     author = db.Column(db.String(100), index=True, nullable=False)
+
+class Reason(db.Model):
+    __tablename__ = "reasons"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+
+    @staticmethod
+    def insert_reasons():
+        reasons = [
+            "Illegal/Inapproriate",
+            "Spam",
+            "Personal Attack",
+            "Private Selling",
+            "Off-topic",
+            "Duplicate",
+            "Other"
+        ]
+        for c in reasons:
+            existing_reason = Reason.query.filter_by(name=c).first()
+            if not existing_reason:
+                new_reason = Reason(name=c)
+                db.session.add(new_reason)
+        db.session.commit()
+
+
+class Report(db.Model):
+    __tablename__ = "reports"
+
+    id = db.Column(db.Integer, primary_key=True) 
+    reason_id = db.Column(db.Integer, db.ForeignKey("reasons.id"))   
+    post_id = db.Column(db.Integer, nullable=True)
+    comment_id = db.Column(db.Integer, nullable=True)
+    reporter = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_time = db.Column(db.DateTime, index=True, default=datetime.now(tz=local_timezone))
+    reason = db.relationship("Reason", backref="reports")
+
+    @staticmethod
+    def from_json(json_report):
+        reason = Reason.query.filter_by(name=json_report.get("reason")).first()
+        new_report = Report(
+            reason_id=reason.id,
+            post_id=json_report.get("post_id"),
+            comment_id=json_report.get("comment_id"),
+            description=json_report.get("description")
+        )
+        return new_report
+    
+    def to_json(self):
+        return {
+            "id": self.id,
+            "reason": self.reason.name,
+            "description": self.description,
+            "comment_id": self.comment_id,
+            "post_id": self.post_id
+        }

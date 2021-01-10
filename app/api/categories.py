@@ -10,8 +10,8 @@ from .errors import internal_error
 def get_categories():
     current_app.logger.info("Retrieving all categories")
     try:
-      categories = Category.query(Category.name).all()
+      categories = Category.query.with_entities(Category.name).all()
     except SQLAlchemyError as e:
-      current_app.logger.rror(e)
+      current_app.logger.error(e)
       return internal_error("Encounter unexpected error")
-    return jsonify({"categories": categories})
+    return jsonify({"categories": [c[0] for c in categories]})

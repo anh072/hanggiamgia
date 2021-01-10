@@ -72,3 +72,39 @@ update_post_vote_schema = {
 
 class UpdatePostVoteInput(Inputs):
     json = [JsonSchema(schema=update_post_vote_schema)]
+
+
+report_schema = {
+    "type": "object",
+    "properties": {
+        "reason": {
+            "type": "string",
+            "enum": [
+                "Illegal/Inapproriate",             
+                "Spam",
+                "Personal Attack",
+                "Private Selling",
+                "Off-topic",
+                "Duplicate"
+                "Other"
+            ]
+        },
+        "post_id": {
+            "type": "integer"
+        },
+        "comment_id": {
+            "type": "integer"
+        },
+        "description": {
+            "type": "string"
+        }
+    },
+    "oneOf": [
+        { "required": ["reason", "post_id"] },
+        { "required": ["reason", "comment_id"] }
+    ]
+}
+
+
+class ReportInput(Inputs):
+    json = [JsonSchema(schema=report_schema)]

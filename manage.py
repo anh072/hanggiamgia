@@ -5,7 +5,7 @@ from flask_script import Manager, Shell
 from flask_migrate import Migrate, upgrade, MigrateCommand
 
 from app import create_app, db
-from app.models import Post, Comment, Category
+from app.models import Post, Comment, Category, Reason
 
 app = create_app(os.getenv("FLASK_CONFIG") or "default")
 manager = Manager(app)
@@ -60,6 +60,7 @@ def deploy():
 
     # create or update user roles
     Category.insert_categories()
+    Reason.insert_reasons()
 
 
 @manager.command

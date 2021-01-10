@@ -14,7 +14,7 @@ def get_posts():
     current_app.logger.info("Retrieving posts")
     page = request.args.get("page", 1, type=int)
     category = request.args.get("category", None, type=str)
-    if not category:
+    if not category or category == "All":
         pagination = Post.query.order_by(Post.created_time.desc()) \
             .paginate(
                 page,
@@ -102,7 +102,7 @@ def update_post_votes(id):
         return bad_request(validator.errors)
     
     try:
-        post = Post.query.with_for_update(of=Post).filter(Post.id=id).first()
+        post = Post.query.with_for_update(of=Post).filter(Post.id == id).first()
         if not post:
             return not_found("Post is not found")
         
