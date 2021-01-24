@@ -1,13 +1,12 @@
 from datetime import datetime
+import enum
 
 from flask import url_for
 import json
 import pytz
+from pytz import timezone
 
 from . import db
-
-
-local_timezone = pytz.timezone("Asia/Ho_Chi_Minh")
 
 
 class Category(db.Model):
@@ -39,7 +38,7 @@ class Comment(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     author = db.Column(db.String(80), nullable=False)
-    created_time = db.Column(db.DateTime, index=True, default=datetime.now(tz=local_timezone))
+    created_time = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     post_id = db.Column(db.Integer, db.ForeignKey("posts.id"))
     text = db.Column(db.Text, nullable=False)
 
@@ -69,7 +68,7 @@ class Post(db.Model):
     start_date = db.Column(db.DateTime, nullable=False)
     end_date = db.Column(db.DateTime, nullable=False)
     description = db.Column(db.Text)
-    created_time = db.Column(db.DateTime, index=True, default=datetime.now(tz=local_timezone))
+    created_time = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     category_id = db.Column(db.Integer, db.ForeignKey("categories.id"))
     votes = db.Column(db.Integer, default=0)
     category = db.relationship("Category", backref="posts")
@@ -96,9 +95,21 @@ class Post(db.Model):
     @staticmethod
     def from_json(json_post):
         category = Category.query.filter_by(name=json_post.get("category")).first()
+        # get timezones
+        utc = pytz.utc
+        local_zone = timezone("Asia/Ho_Chi_Minh")
+        # convert to datetime objects
+        start_date = datetime.strptime(json_post.get("start_date"), '%Y-%m-%dT%H:%M')
+        end_date = datetime.strptime(json_post.get("end_date"), '%Y-%m-%dT%H:%M')
+        # datetime object in local timezone
+        loc_start_date = local_zone.localize(start_date)
+        loc_end_date = local_zone.localize(end_date)
+        # datetime object in utc timezone
+        utc_start_date = loc_start_date.astimezone(utc)
+        utc_end_date = loc_end_date.astimezone(utc)
         new_post = Post(
-            start_date=json_post.get("start_date"),
-            end_date=json_post.get("end_date"),
+            start_date=utc_start_date.strftime('%Y-%m-%d %H:%M:%S.%f'),
+            end_date=utc_end_date.strftime('%Y-%m-%d %H:%M:%S.%f'),
             title=json_post.get("title"),
             category_id=category.id,
             description=json_post.get("description"),
@@ -107,6 +118,30 @@ class Post(db.Model):
             image_url=json_post.get("image_url")
         )
         return new_post
+
+
+class VoteTypeEnum(enum.Enum):
+    INCREMENT = "increment"
+    DECREMENT = "decrement"
+
+
+class Vote(db.Model):
+    __tablename__ = "votes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    post_id = db.Column(db.Integer, db.ForeignKey("posts.id"), index=True)
+    voter = db.Column(db.String(100), nullable=False)
+    vote_type = db.Column(db.Enum(VoteTypeEnum))
+    created_time = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_json(self):
+        return {
+            "id": self.id,
+            "post_id": self.post_id,
+            "voter": self.voter,
+            "vote_type": self.vote_type.value,
+            "created_time": self.created_time
+        }
 
 
 class Image(db.Model):
@@ -150,7 +185,7 @@ class Report(db.Model):
     comment_id = db.Column(db.Integer, nullable=True)
     reporter = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    created_time = db.Column(db.DateTime, index=True, default=datetime.now(tz=local_timezone))
+    created_time = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     reason = db.relationship("Reason", backref="reports")
 
     @staticmethod

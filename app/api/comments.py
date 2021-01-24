@@ -1,5 +1,7 @@
 from flask import request, jsonify, url_for, current_app
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import and_
+from datetime import datetime
 
 from . import api
 from ..models import Post, Comment
@@ -11,26 +13,31 @@ from .validations import CreateCommentInput
 @api.route("/posts/<int:id>/comments")
 def get_post_comments(id):
     current_app.logger.info(f"Retrieving comments for post {id}")
-    post = Post.query.get_or_404(id)
-    page = request.args.get('page', 1, type=int)
-    pagination = post.comments.order_by(
-        Comment.created_time.asc()).paginate(
-            page, 
-            per_page=current_app.config["COMMENTS_PER_PAGE"],
-            error_out=False
-        )
-    comments = pagination.items
-    prev, next = None, None
-    if pagination.has_prev:
-        prev = url_for('api.get_post_comments', id=id, page=page-1)
-    if pagination.has_next:
-        next = url_for('api.get_post_comments', id=id, page=page+1)
-    return jsonify({
-        'comments': [comment.to_json() for comment in comments],
-        'prev': prev,
-        'next': next,
-        'count': pagination.total
-    })
+    try:
+        post = Post.query.get_or_404(id)
+        start_comment = request.args.get('start_comment', None, type=int)
+        offset = request.args.get('offset', None, type=int)
+        if not offset:
+            offset = current_app.config["INITIAL_COMMENTS_PER_POST"]
+        if not start_comment:
+            comments = Comment.query.filter_by(post_id=id) \
+                .order_by(Comment.created_time.desc()) \
+                .limit(offset) \
+                .all()
+        else:
+            comments = Comment.query.filter(and_(Comment.post_id==id, Comment.id <= start_comment)) \
+                .order_by(Comment.created_time.desc()) \
+                .limit(offset) \
+                .all()
+        count = Comment.query.filter_by(post_id=id).count()
+        return jsonify({
+            'comments': [comment.to_json() for comment in comments],
+            'count': count
+        })
+    except SQLAlchemyError as e:
+        current_app.logger.error(e)
+        db.session.rollback()
+        return internal_error("Encounter unexpected error")
 
 
 @api.route("/posts/<int:id>/comments", methods=["POST"])

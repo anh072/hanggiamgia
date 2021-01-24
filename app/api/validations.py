@@ -15,7 +15,8 @@ create_post_schema = {
         },
         "description": { "type": "string" },
         "url": { "$ref": "#/definitions/valid_url" },
-        "coupon_code": { "type": "string" } 
+        "coupon_code": { "type": "string" },
+        "image_url": { "$ref": "#/definitions/valid_url" }
     },
     "definitions": {
         "valid_url": { "format": "uri", "pattern": "^https?://" }
@@ -99,7 +100,7 @@ report_schema = {
             "type": "string"
         }
     },
-    "oneOf": [
+    "anyOf": [
         { "required": ["reason", "post_id"] },
         { "required": ["reason", "comment_id"] }
     ]
