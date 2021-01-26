@@ -1,12 +1,13 @@
 from flask import jsonify, request, current_app, url_for
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
+import time
 
 from . import api
-from ..models import Post, Category, Vote, VoteTypeEnum
+from ..models import Post, Category
 from .. import db
 from .errors import bad_request, forbidden, not_found, internal_error
-from .validations import CreatePostInput, SearchPostInput, UpdatePostVoteInput
+from .validations import CreatePostInput, SearchPostInput
 
 
 @api.route("/posts", methods=["GET"])
@@ -33,9 +34,15 @@ def get_posts():
     posts = pagination.items
     prev, next = None, None
     if pagination.has_prev:
-        prev = url_for("api.get_posts", page=page-1)
+        if not category or category == "all":
+            prev = url_for("api.get_posts", page=page-1)
+        else:
+            prev = url_for("api.get_posts", page=page-1, category=category)
     if pagination.has_next:
-        next = url_for("api.get_posts", page=page+1)
+        if not category or category == "all":
+            next = url_for("api.get_posts", page=page+1)
+        else:
+            next = url_for("api.get_posts", page=page+1, category=category)
     return jsonify({
         "posts": [post.to_json() for post in posts],
         "prev": prev,
@@ -91,58 +98,6 @@ def edit_post(id):
         db.session.rollback()
         return internal_error("Encounter unexpected error")
     return jsonify(post.to_json())
-
-
-@api.route("/posts/<int:id>/votes", methods=["PUT"])
-def update_post_votes(id):
-    current_app.logger.info(f"Updating vote count for post {id}")
-    username = request.headers.get("username")
-
-    validator = UpdatePostVoteInput(request)
-    if not validator.validate():
-        return bad_request(validator.errors)
-    
-    try:
-        post = Post.query.with_for_update(of=Post).filter(Post.id == id).first()
-        if not post:
-            return not_found("Post is not found")
-        vote = Vote.query.filter_by(post_id=id, voter=username).first()
-        if vote:
-            return bad_request(f"User {username} has already voted")
-
-        action = request.json.get("vote_action")
-        if action == "increment":
-            post.votes += 1
-            vote_type = VoteTypeEnum.INCREMENT
-        else:
-            post.votes -= 1
-            vote_type = VoteTypeEnum.DECREMENT
-
-        new_vote = Vote(
-            post_id=id,
-            voter=username,
-            vote_type=vote_type
-        )
-        db.session.add(post)
-        db.session.add(new_vote)
-        db.session.commit()
-    except SQLAlchemyError as e:
-        current_app.logger.error(e)
-        db.session.rollback()
-        return internal_error("Encounter unexpected error")
-    return jsonify(post.to_json())
-
-
-@api.route("/posts/<int:id>/votes", methods=["GET"])
-def get_post_votes(id):
-    current_app.logger.info(f"Retrieving votes for post {id}")
-    post = Post.query.filter(Post.id == id).first()
-    if not post:
-        return not_found("Post is not found")
-    votes = Vote.query.filter_by(post_id=id)
-    return jsonify({
-        "votes": [v.to_json() for v in votes]
-    })
 
 
 @api.route("/posts/search", methods=["POST"])
