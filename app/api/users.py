@@ -8,12 +8,12 @@ import boto3
 from botocore.exceptions import ClientError
 
 from . import api
-from ..models import Post, Image as ImageModel
+from ..models import Post, Image as ImageModel, Comment
 from .errors import bad_request
 from .. import db
 
 
-@api.route("/users/<username>/posts", methods=["GET"])
+@api.route("/users/<string:username>/posts", methods=["GET"])
 def get_posts_by_username(username):
     page = request.args.get("page", 1, type=int)
     pagination = Post.query.filter_by(author=username) \
@@ -79,3 +79,26 @@ def image_upload(username):
     db.session.add(image_model)
     db.session.commit()
     return jsonify({"image_url": image_url})
+
+
+@api.route("/users/<string:username>/commented_posts")
+def get_commented_post_by_username(username):
+    page = request.args.get("page", 1, type=int)
+    pagination = Post.query.join(Comment, Post.id == Comment.post_id) \
+        .filter(Comment.author == username) \
+        .paginate(
+            page, 
+            per_page=current_app.config["POSTS_PER_PAGE"],
+            error_out=False)
+    posts = pagination.items
+    prev, next = None, None
+    if pagination.has_prev:
+        prev = url_for("api.get_commented_post_by_username", page=page-1)
+    if pagination.has_next:
+        next = url_for("api.get_commented_post_by_username", page=page+1)
+    return jsonify({
+        "posts": [post.to_json() for post in posts],
+        "prev": prev,
+        "next": next,
+        "count": pagination.total
+    })

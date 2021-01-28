@@ -1,6 +1,5 @@
 from flask import jsonify, request, current_app
 from sqlalchemy.exc import SQLAlchemyError
-import time
 
 from . import api
 from ..models import Post, Vote, VoteTypeEnum
@@ -56,7 +55,6 @@ def get_post_votes(id):
     if not post:
         return not_found("Post is not found")
     votes = Vote.query.filter_by(post_id=id)
-    time.sleep(1)
     return jsonify({
         "votes": [v.to_json() for v in votes]
     })

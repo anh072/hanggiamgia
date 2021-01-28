@@ -34,8 +34,8 @@ def report():
     try:
         db.session.add(report)
         db.session.commit()
+        return jsonify(report.to_json()), 201
     except SQLAlchemyError as e:
         current_app.logger.error(e)
         db.session.rollback()
         return internal_error("Encounter unexpected error")
-    return jsonify(report.to_json()), 201

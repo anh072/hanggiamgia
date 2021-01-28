@@ -18,6 +18,12 @@ Bring up the app stack
 docker-compose up
 ```
 
+To print out the SQL query, you can do this
+```
+q = Post.query.join(Comment, Post.id == Comment.post_id).filter(Comment.author == username)
+print(str(q))
+```
+
 ## Database migration
 ```
 python manage.py db init

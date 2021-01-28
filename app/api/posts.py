@@ -1,7 +1,6 @@
 from flask import jsonify, request, current_app, url_for
 from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
-import time
 
 from . import api
 from ..models import Post, Category
@@ -140,3 +139,5 @@ def search_posts():
         "next": next,
         "count": pagination.total
     })
+
+
