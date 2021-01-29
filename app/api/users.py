@@ -6,11 +6,13 @@ from werkzeug.utils import secure_filename
 from PIL import Image
 import boto3
 from botocore.exceptions import ClientError
+import requests
 
 from . import api
 from ..models import Post, Image as ImageModel, Comment
-from .errors import bad_request
+from .errors import bad_request, not_found, internal_error
 from .. import db
+from .auth import get_access_token
 
 
 @api.route("/users/<string:username>/posts", methods=["GET"])
@@ -22,15 +24,9 @@ def get_posts_by_username(username):
             per_page=current_app.config["POSTS_PER_PAGE"],
             error_out=False)
     posts = pagination.items
-    prev, next = None, None
-    if pagination.has_prev:
-        prev = url_for("api.get_posts_by_username", page=page-1)
-    if pagination.has_next:
-        next = url_for("api.get_posts_by_username", page=page+1)
     return jsonify({
         "posts": [post.to_json() for post in posts],
-        "prev": prev,
-        "next": next,
+        "limit": current_app.config["POSTS_PER_PAGE"],
         "count": pagination.total
     })
 
@@ -81,7 +77,7 @@ def image_upload(username):
     return jsonify({"image_url": image_url})
 
 
-@api.route("/users/<string:username>/commented_posts")
+@api.route("/users/<string:username>/commented_posts", methods=["GET"])
 def get_commented_post_by_username(username):
     page = request.args.get("page", 1, type=int)
     pagination = Post.query.join(Comment, Post.id == Comment.post_id) \
@@ -91,14 +87,37 @@ def get_commented_post_by_username(username):
             per_page=current_app.config["POSTS_PER_PAGE"],
             error_out=False)
     posts = pagination.items
-    prev, next = None, None
-    if pagination.has_prev:
-        prev = url_for("api.get_commented_post_by_username", page=page-1)
-    if pagination.has_next:
-        next = url_for("api.get_commented_post_by_username", page=page+1)
     return jsonify({
         "posts": [post.to_json() for post in posts],
-        "prev": prev,
-        "next": next,
+        "limit": current_app.config["POSTS_PER_PAGE"],
         "count": pagination.total
     })
+
+
+@api.route("/users/<string:username>", methods=["GET"])
+def get_user_by_username(username):
+    try:
+        access_token = get_access_token()
+        res = requests.get(
+            f"https://{current_app.config['AUTH0_API_DOMAIN']}/api/v2/users?q=username%3A%22{username}%22&search_engine=v3",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
+        )
+        res.raise_for_status()
+        data = res.json()
+        if not len(data):
+            return not_found("User is not found")
+        user = data[0]
+        return jsonify({
+            "user": {
+                "created_time": user["created_at"],
+                "username": user["username"],
+                "email": user["email"],
+                "picture": user["picture"]
+            }
+        })
+    except requests.RequestException as e:
+        current_app.logger.error(e)
+        return internal_error("Unexpecter error")

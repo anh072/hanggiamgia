@@ -31,21 +31,9 @@ def get_posts():
                 error_out=False
             )
     posts = pagination.items
-    prev, next = None, None
-    if pagination.has_prev:
-        if not category or category == "all":
-            prev = url_for("api.get_posts", page=page-1)
-        else:
-            prev = url_for("api.get_posts", page=page-1, category=category)
-    if pagination.has_next:
-        if not category or category == "all":
-            next = url_for("api.get_posts", page=page+1)
-        else:
-            next = url_for("api.get_posts", page=page+1, category=category)
     return jsonify({
         "posts": [post.to_json() for post in posts],
-        "prev": prev,
-        "next": next,
+        "limit": current_app.config["POSTS_PER_PAGE"],
         "count": pagination.total
     })
 
@@ -128,15 +116,9 @@ def search_posts():
                 per_page=current_app.config["POSTS_PER_PAGE"],
                 error_out=False)
     posts = pagination.items
-    prev, next = None, None
-    if pagination.has_prev:
-        prev = url_for("api.search_posts", page=page-1)
-    if pagination.has_next:
-        next = url_for("api.search_posts", page=page+1)
     return jsonify({
         "posts": [post.to_json() for post in posts],
-        "prev": prev,
-        "next": next,
+        "limit": current_app.config["POSTS_PER_PAGE"],
         "count": pagination.total
     })
 
