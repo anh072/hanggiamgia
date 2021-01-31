@@ -42,23 +42,6 @@ class CreateCommentInput(Inputs):
     json = [JsonSchema(schema=create_comment_schema)]
 
 
-search_posts_schema = {
-    "type": "object",
-    "properties": {
-        "category": { 
-            "type": "string",  
-            "enum": ["All", "Books and Magazines", "Entertainment", "Electronics", "Food and Beverage", "Clothing", "Health and Beauty"]
-        },
-        "key": { "type": "string", "minLength": 1 }
-    },
-    "required": ["key", "category"]
-}
-
-
-class SearchPostInput(Inputs):
-    json = [JsonSchema(schema=search_posts_schema)]
-
-
 update_post_vote_schema = {
     "type": "object",
     "properties": {

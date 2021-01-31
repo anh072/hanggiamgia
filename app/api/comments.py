@@ -77,8 +77,27 @@ def edit_comment(post_id, comment_id):
         comment.text = request.json.get("text", comment.text)
         db.session.add(comment)
         db.session.commit()
+        return jsonify(comment.to_json())
     except SQLAlchemyError as e:
         current_app.logger.error(e)
         db.session.rollback()
         return internal_error("Encounter unexpected error")
-    return jsonify(comment.to_json())
+
+
+@api.route("/posts/<int:post_id>/comments/<int:comment_id>", methods=["DELETE"])
+def delete_comment(post_id, comment_id):
+    current_app.logger.info(f"Deleteing comment {comment_id} from post {post_id}")
+    try:
+        comment = Comment.query.get_or_404(comment_id)
+        editor = request.headers.get("username")
+        if editor != comment.author:
+            return forbidden(f"{editor} is not the comment's owner")
+        if comment.post_id != post_id:
+            return forbidden(f"The comment is not for {post_id}")
+        db.session.delete(comment)
+        db.session.commit()
+        return "Deleted", 200
+    except SQLAlchemyError as e:
+        current_app.logger.error(e)
+        db.session.rollback()
+        return internal_error("Encounter unexpected error")
