@@ -99,8 +99,8 @@ class Post(db.Model):
         utc = pytz.utc
         local_zone = timezone("Asia/Ho_Chi_Minh")
         # convert to datetime objects
-        start_date = datetime.strptime(json_post.get("start_date"), '%Y-%m-%dT%H:%M')
-        end_date = datetime.strptime(json_post.get("end_date"), '%Y-%m-%dT%H:%M')
+        start_date = datetime.strptime(json_post.get("start_date"), '%Y-%m-%d')
+        end_date = datetime.strptime(json_post.get("end_date"), '%Y-%m-%d')
         # datetime object in local timezone
         loc_start_date = local_zone.localize(start_date)
         loc_end_date = local_zone.localize(end_date)
@@ -108,8 +108,8 @@ class Post(db.Model):
         utc_start_date = loc_start_date.astimezone(utc)
         utc_end_date = loc_end_date.astimezone(utc)
         new_post = Post(
-            start_date=utc_start_date.strftime('%Y-%m-%d %H:%M:%S.%f'),
-            end_date=utc_end_date.strftime('%Y-%m-%d %H:%M:%S.%f'),
+            start_date=utc_start_date.strftime('%Y-%m-%d'),
+            end_date=utc_end_date.strftime('%Y-%m-%d'),
             title=json_post.get("title"),
             category_id=category.id,
             description=json_post.get("description"),
