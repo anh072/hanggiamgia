@@ -61,12 +61,11 @@ def create_post():
 def edit_post(id):
     current_app.logger.info(f"Editing post {id}")
     editor = request.headers.get("username")
-
     try:
         post = Post.query.get_or_404(id)
         if editor != post.author:
             return forbidden(f"{editor} is not the post's owner")
-        post.text = request.json.get("text", post.text)
+        post.update_from_json(request.json)
         db.session.add(post)
         db.session.commit()
     except SQLAlchemyError as e:

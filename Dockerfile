@@ -5,9 +5,9 @@ ENV FLASK_CONFIG production
 
 RUN adduser app
 
-WORKDIR /home/hanggiamgia
+WORKDIR /home/giare
 
-RUN chown app /home/hanggiamgia
+RUN chown app /home/giare
 USER app
 
 COPY requirements.txt .

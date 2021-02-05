@@ -3,6 +3,11 @@
 A website for Vietnamese people to buy discounted products and bargains
 
 ## Local development
+Create a virtual environment
+```
+python3 -m venv hanggiamgia
+```
+
 Activate your virtual environment
 ```
 source .venv/bin/activate

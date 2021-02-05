@@ -9,6 +9,11 @@ from pytz import timezone
 from . import db
 
 
+# get timezones
+utc = pytz.utc
+local_zone = timezone("Asia/Ho_Chi_Minh")
+
+
 class Category(db.Model):
     __tablename__ = "categories"
 
@@ -92,12 +97,33 @@ class Post(db.Model):
             "votes": self.votes
         }
 
+    def update_from_json(self, json_put):
+        self.title = json_put.get("title")
+
+        category = Category.query.filter_by(name=json_put.get("category")).first()
+        self.category_id = category.id
+        self.description = json_put.get("description")
+
+        # convert to datetime objects
+        start_date = datetime.strptime(json_put.get("start_date"), '%Y-%m-%d')
+        end_date = datetime.strptime(json_put.get("end_date"), '%Y-%m-%d')
+        # datetime object in local timezone
+        loc_start_date = local_zone.localize(start_date)
+        loc_end_date = local_zone.localize(end_date)
+        # datetime object in utc timezone
+        utc_start_date = loc_start_date.astimezone(utc)
+        utc_end_date = loc_end_date.astimezone(utc)
+        self.start_date = utc_start_date.strftime('%Y-%m-%d'),
+        self.end_date = utc_end_date.strftime('%Y-%m-%d'),
+        self.coupon_code = json_put.get("coupon", None)
+        self.url = json_put.get("url", None)
+        if json_put.get("image_url"):
+            self.image_url = json_put.get("image_url")
+
     @staticmethod
     def from_json(json_post):
         category = Category.query.filter_by(name=json_post.get("category")).first()
-        # get timezones
-        utc = pytz.utc
-        local_zone = timezone("Asia/Ho_Chi_Minh")
+
         # convert to datetime objects
         start_date = datetime.strptime(json_post.get("start_date"), '%Y-%m-%d')
         end_date = datetime.strptime(json_post.get("end_date"), '%Y-%m-%d')
@@ -114,7 +140,7 @@ class Post(db.Model):
             category_id=category.id,
             description=json_post.get("description"),
             url=json_post.get("url"),
-            coupon_code=json_post.get("coupon_code"),
+            coupon_code=json_post.get("coupon"),
             image_url=json_post.get("image_url")
         )
         return new_post
