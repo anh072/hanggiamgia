@@ -6,4 +6,4 @@ if [[ "$?" == "0" ]]; then
     break
 fi
 
-exec gunicorn -b 0.0.0.0:5000 --worker-class gevent --workers 4 patched:app
+exec gunicorn -b 0.0.0.0:5000 --log-level=info --worker-class gevent --workers 4 patched:app
