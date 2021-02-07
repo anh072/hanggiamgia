@@ -31,7 +31,7 @@ def get_posts_by_username(username):
     })
 
 
-@api.route("/users/<username>/images/upload", methods=["POST"])
+@api.route("/users/<string:username>/images/upload", methods=["POST"])
 def image_upload(username):
     current_app.logger.info(f"Uploading image for user {username}")
     if not request.files or "image" not in request.files:
