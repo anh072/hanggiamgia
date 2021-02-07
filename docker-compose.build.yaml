@@ -1,0 +1,18 @@
+---
+version: '3.4'
+
+services:
+  aws:
+    image: contino/aws-cli:latest
+    env_file: .env
+    working_dir: /opt/app
+    volumes:
+    - .:/opt/app:rw
+    - ~/.aws:/root/.aws
+
+  lint:
+    image: giantswarm/yamllint:latest
+    env_file: .env
+    entrypoint: []
+    volumes:
+    - .:/workdir

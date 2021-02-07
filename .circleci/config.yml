@@ -1,0 +1,64 @@
+---
+version: 2
+jobs:
+  test:
+    machine:
+      image: ubuntu-2004:202010-01
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run:
+        name: Run YAML linting
+        command: make lint
+    - run:
+        name: Validate Cloudformation templates
+        command: make validate
+
+  build:
+    machine:
+      image: ubuntu-2004:202010-01
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run:
+        name: Push Docker image to ECR
+        command: make build
+        environment:
+          TAG: ${CIRCLE_SHA1}
+
+  deployApp:
+    machine:
+      image: ubuntu-2004:202010-01
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run:
+        name: Deploy CloudFormation for App
+        command: |
+          echo "export TAG=$CIRCLE_SHA1" >> $BASH_ENV
+          echo "export ENV=test" >> $BASH_ENV
+          source $BASH_ENV
+          make deployApp
+        no_output_timeout: 20m
+
+workflows:
+  version: 2
+  build_test_deploy:
+    jobs:
+    - test
+    - build:
+        requires:
+        - test
+        filters:
+          branches:
+            only: main
+          tags:
+            ignore: /.*/
+    - deployApp:
+        requires:
+        - build
+        filters:
+          branches:
+            only: main
+          tags:
+            ignore: /.*/

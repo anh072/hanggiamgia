@@ -1,0 +1,380 @@
+---
+
+Transform: AWS::SecretsManager-2020-07-23
+
+Description: giare backend stack
+
+Parameters:
+  ServiceName:
+    Type: String
+    Description: The name of this service
+    Default: giare
+
+  Environment:
+    Description: The environment name
+    Type: String
+    Default: test
+    AllowedValues:
+    - test
+    - dev
+    - prod
+
+  ImageTag:
+    Type: String
+
+  ImageRegistry:
+    Type: String
+    Default: 838080186947.dkr.ecr.ap-southeast-2.amazonaws.com
+
+  DbInstanceClass:
+    Type: String
+    AllowedValues:
+    - db.t2.small
+    - db.t2.medium
+    - db.t2.large
+    Default: db.t2.small
+
+  VPC:
+    Type: String
+    Default: vpc-0de5e24da01683ba7
+
+  AppSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: 'subnet-0f949673f5f3a21eb,subnet-0df1f13814d1e8985'
+
+  DataSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: 'subnet-043a3a74a388a5b27,subnet-09965c7f169d964ef'
+
+Resources:
+########## Log Group ########################
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join [ '-', [ !Ref ServiceName, !Ref Environment, TaskDefinition ] ]
+
+########### S3 bucket ##########################
+  ImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: PublicRead
+      BucketName: !Sub '${ServiceName}-${Environment}-post-image'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: false
+      VersioningConfiguration:
+        Status: Enabled
+
+######### Load Balancer ####################
+  ALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: !Sub '${ServiceName}-${Environment}-internal-alb'
+      Scheme: internal
+      SecurityGroups:
+      - !Ref ALBSecurityGroup
+      Subnets: !Ref AppSubnets
+      Type: application
+
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for public ALB
+      GroupName: !Sub 'internal-${ServiceName}-${Environment}-alb-sg'
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0 # Allow traffic from apigateway only
+        Description: Allow public traffic
+        FromPort: 443
+        IpProtocol: tcp
+        ToPort: 443
+      - CidrIp: 0.0.0.0/0
+        Description: Allow public traffic
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80
+      VpcId: !Ref VPC
+
+  ALBTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckPort: 5000
+      HealthCheckProtocol: HTTP
+      HealthyThresholdCount: 5
+      Name: !Sub '${ServiceName}-${Environment}-tg'
+      Port: 5000
+      Protocol: HTTP
+      TargetType: ip
+      UnhealthyThresholdCount: 10
+      VpcId: !Ref VPC
+
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref ALBTargetGroup
+      LoadBalancerArn: !Ref ALB
+      Port: 80
+      Protocol: HTTP
+
+########## Containers #######################
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Join [ '-', [ !Ref ServiceName, !Ref Environment, Cluster ] ]
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    DependsOn: LogGroup
+    Properties:
+      Family: !Join [ '-', [ !Ref ServiceName, !Ref Environment, TaskDefinition ] ]
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+      - FARGATE
+      Cpu: 512
+      Memory: 3GB
+      ExecutionRoleArn: !Ref ExecutionRole # container agent
+      TaskRoleArn: !Ref TaskRole # container
+      ContainerDefinitions:
+      - Name: !Sub '${ServiceName}-${Environment}'
+        Image: !Sub '${ImageRegistry}/${ServiceName}:${ImageTag}'
+        PortMappings:
+        - ContainerPort: 5000
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-region: !Ref AWS::Region
+            awslogs-group: !Ref LogGroup
+            awslogs-stream-prefix: ecs
+        Secrets:
+        - Name: DATABASE_NAME
+          ValueFrom:
+            !Sub
+            - '${DbSecretArn}:dbname::'
+            - { DbSecretArn: !Ref RDSInstanceRotationSecret }
+        - Name: DATABASE_USERNAME
+          ValueFrom:
+            !Sub
+            - '${DbSecretArn}:username::'
+            - { DbSecretArn: !Ref RDSInstanceRotationSecret }
+        - Name: DATABASE_PASSWORD
+          ValueFrom:
+            !Sub
+            - '${DbSecretArn}:password::'
+            - { DbSecretArn: !Ref RDSInstanceRotationSecret }
+        - Name: DATABASE_HOST
+          ValueFrom:
+            !Sub
+            - '${DbSecretArn}:host::'
+            - { DbSecretArn: !Ref RDSInstanceRotationSecret }
+        - Name: CLIENT_SECRET
+          ValueFrom: 'arn:aws:secretsmanager:ap-southeast-2:838080186947:secret:/test/client-secret/giare-kNG4US:client-secret::'
+
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ '-', [ !Ref ServiceName, !Ref Environment, ExecutionRole ] ]
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+          Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+      - 'arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy'
+      Policies:
+      - PolicyName: !Sub '${ServiceName}-${Environment}-secretsmanager-policy'
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - "secretsmanager:GetRandomPassword"
+            - "secretsmanager:GetResourcePolicy"
+            - "secretsmanager:GetSecretValue"
+            - "secretsmanager:DescribeSecret"
+            - "secretsmanager:ListSecretVersionIds"
+            - "secretsmanager:ListSecrets"
+            Resource: '*'
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ '', [ !Ref ServiceName, !Ref Environment, TaskRole ] ]
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+          Action: 'sts:AssumeRole'
+      Policies:
+      - PolicyName: !Sub '${ServiceName}-${Environment}-image-upload-policy'
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - 's3:*'
+            Resource: !GetAtt 'ImageBucket.Arn'
+
+  ContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Join [ '-', [ !Ref ServiceName, !Ref Environment, container-sg ] ]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 5000
+        ToPort: 5000
+        SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: ALBListener
+    Properties:
+      ServiceName: !Sub '${ServiceName}-${Environment}'
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 200
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 30
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets: !Ref AppSubnets
+          SecurityGroups:
+          - !Ref ContainerSecurityGroup
+      LoadBalancers:
+      - ContainerName: !Sub '${ServiceName}-${Environment}'
+        ContainerPort: 5000
+        TargetGroupArn: !Ref ALBTargetGroup
+
+  AutoScalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join [ '-', [ !Ref ServiceName, !Ref Environment, AutoScalingRole ] ]
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ecs-tasks.amazonaws.com
+          Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+      - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceAutoscaleRole'
+
+  AutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 10
+      ResourceId: !Join [ '/', [ service, !Ref Cluster, !GetAtt Service.Name ] ]
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+      RoleARN: !GetAtt AutoScalingRole.Arn
+
+  AutoScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Join [ '-', [ !Ref ServiceName, !Ref Environment, AutoScalingPolicy ] ]
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        ScaleInCooldown: 10
+        ScaleOutCooldown: 10
+        TargetValue: 60
+
+########## Database resources ###############
+
+  RDSInstanceRotationSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: 'This is my rds instance secret'
+      Name: !Sub '/${Environment}/database/giare'
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${Environment}_giare"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+
+  SecretRDSInstanceAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref RDSInstanceRotationSecret
+      TargetId: !Ref Database
+      TargetType: AWS::RDS::DBInstance
+
+  SecretRotation:
+    Type: AWS::SecretsManager::RotationSchedule
+    DependsOn:
+    - SecretRDSInstanceAttachment
+    Properties:
+      SecretId: !Ref RDSInstanceRotationSecret
+      HostedRotationLambda:
+        RotationType: PostgreSQLSingleUser
+        RotationLambdaName: SecretsManagerRotation
+        VpcSecurityGroupIds: !GetAtt 'DbSecurityGroup.GroupId'
+        VpcSubnetIds: !Join [ ',', !Ref DataSubnets ]
+      RotationRules:
+        AutomaticallyAfterDays: 30
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      AllocatedStorage: 20
+      BackupRetentionPeriod: 14
+      DBInstanceClass: !Ref DbInstanceClass
+      DBInstanceIdentifier: giare
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      DBName: app
+      Engine: postgres
+      MasterUsername: !Sub '{{resolve:secretsmanager:${RDSInstanceRotationSecret}::username}}'
+      MasterUserPassword: !Sub '{{resolve:secretsmanager:${RDSInstanceRotationSecret}::password}}'
+      MultiAZ: true
+      Port: 5432
+      PubliclyAccessible: false
+      StorageType: standard
+      VPCSecurityGroups:
+      - !GetAtt 'DbSecurityGroup.GroupId'
+
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for database
+      GroupName: !Sub '${ServiceName}-${Environment}-db-sg'
+      VpcId: !Ref VPC
+
+  DbSGIngressLambda:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref DbSecurityGroup
+
+  DbSGIngressApp:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !GetAtt 'ContainerSecurityGroup.GroupId'
+
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for database
+      DBSubnetGroupName: !Sub '${ServiceName}-${Environment}-db-subnet-group'
+      SubnetIds: !Ref DataSubnets
