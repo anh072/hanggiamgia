@@ -23,12 +23,21 @@ class Category(db.Model):
     @staticmethod
     def insert_categories():
         categories = [
-            "Books and Magazines",
-            "Entertainment",
-            "Electronics",
-            "Food and Beverage",
-            "Clothing",
-            "Health and Beauty"
+            "Làm đẹp - Sức khỏe",
+            "Thời trang - Phụ kiện",
+            "Điện tử",
+            "Thực phẩm",
+            "Nhà cửa",
+            "Voucher",
+            "Thể thao - Dã ngoại",
+            "Điện gia dụng",
+            "Sách - Quà tặng",
+            "Mẹ và bé",
+            "Bia rượu",
+            "Trò chơi",
+            "Xe cộ",
+            "Du lịch",
+            "Ăn uống"
         ]
         for c in categories:
             existing_category = Category.query.filter_by(name=c).first()
@@ -186,13 +195,14 @@ class Reason(db.Model):
     @staticmethod
     def insert_reasons():
         reasons = [
-            "Illegal/Inapproriate",
+            "Nội dung không phù hợp",
             "Spam",
-            "Personal Attack",
-            "Private Selling",
-            "Off-topic",
-            "Duplicate",
-            "Other"
+            "Không có tại Việt Nam",
+            "Bán tư nhân",
+            "Đã có",
+            "Hết hạn",
+            "Quảng cáo",
+            "Lý do khác"
         ]
         for c in reasons:
             existing_reason = Reason.query.filter_by(name=c).first()

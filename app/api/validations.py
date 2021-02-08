@@ -11,7 +11,23 @@ create_post_schema = {
         "title": { "type": "string", "minLength": 1 },
         "category": { 
             "type": "string", 
-            "enum": ["Books and Magazines", "Entertainment", "Electronics", "Food and Beverage", "Clothing", "Health and Beauty"] 
+            "enum": [
+                "Làm đẹp - Sức khỏe",
+                "Thời trang - Phụ kiện",
+                "Điện tử",
+                "Thực phẩm",
+                "Nhà cửa",
+                "Voucher - Thẻ cào",
+                "Thể thao - Dã ngoại",
+                "Điện gia dụng",
+                "Sách - Quà tặng",
+                "Mẹ và bé",
+                "Bia rượu",
+                "Trò chơi",
+                "Xe cộ",
+                "Du lịch",
+                "Ăn uống"
+            ] 
         },
         "description": { "type": "string" },
         "url": { "$ref": "#/definitions/valid_url" },
@@ -64,13 +80,14 @@ report_schema = {
         "reason": {
             "type": "string",
             "enum": [
-                "Illegal/Inapproriate",             
+                "Nội dung không phù hợp",
                 "Spam",
-                "Personal Attack",
-                "Private Selling",
-                "Off-topic",
-                "Duplicate"
-                "Other"
+                "Không có tại Việt Nam",
+                "Bán tư nhân",
+                "Đã có",
+                "Hết hạn",
+                "Quảng cáo",
+                "Lý do khác"
             ]
         },
         "post_id": {
