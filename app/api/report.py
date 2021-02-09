@@ -22,6 +22,7 @@ def get_reasons():
 
 @api.route("/reports", methods=["POST"])
 def report():
+    current_app.logger.info("Submitting a report")
     validator = ReportInput(request)
     if not validator.validate():
         return bad_request(validator.errors)

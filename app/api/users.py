@@ -55,6 +55,7 @@ def image_upload(username):
 
     s3_client = boto3.client("s3")
     bucket = current_app.config["S3_IMAGE_BUCKET"]
+    current_app.logger.info(f"S3 bucket: {bucket}")
     aws_region = current_app.config["AWS_REGION"]
 
     try:
