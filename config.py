@@ -26,7 +26,8 @@ class Config:
 
 
 class DevelopmentConfig(Config):
-    S3_IMAGE_BUCKET = "hanggiamgia"
+    S3_IMAGE_BUCKET = "giare-test-post-image"
+
 
 class ProductionConfig(Config):
     POSTS_PER_PAGE = 50
