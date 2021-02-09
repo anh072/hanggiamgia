@@ -52,12 +52,12 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Join [ '-', [ !Ref ServiceName, !Ref Environment, TaskDefinition ] ]
+      RetentionInDays: 120
 
 ########### S3 bucket ##########################
   ImageBucket:
     Type: AWS::S3::Bucket
     Properties:
-      AccessControl: PublicRead
       BucketName: !Sub '${ServiceName}-${Environment}-post-image'
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false
@@ -221,7 +221,11 @@ Resources:
           - Effect: Allow
             Action:
             - 's3:*'
-            Resource: !GetAtt 'ImageBucket.Arn'
+            Resource:
+            - !GetAtt 'ImageBucket.Arn'
+            - !Sub
+              - '${BucketArn}/*'
+              - { BucketArn: !GetAtt 'ImageBucket.Arn' }
 
   ContainerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
