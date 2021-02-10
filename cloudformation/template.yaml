@@ -52,7 +52,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Join [ '-', [ !Ref ServiceName, !Ref Environment, TaskDefinition ] ]
-      RetentionInDays: 120
+      RetentionInDays: 60
 
 ########### S3 bucket ##########################
   ImageBucket:
@@ -152,6 +152,9 @@ Resources:
             awslogs-region: !Ref AWS::Region
             awslogs-group: !Ref LogGroup
             awslogs-stream-prefix: ecs
+        Environment:
+        - Name: FLASK_CONFIG
+          Value: development
         Secrets:
         - Name: DATABASE_NAME
           ValueFrom:
