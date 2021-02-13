@@ -13,6 +13,7 @@ from ..models import Post, Image as ImageModel, Comment
 from .errors import bad_request, not_found, internal_error
 from .. import db
 from .auth import get_access_token
+from .utils import mask_email
 
 
 @api.route("/users/<string:username>/posts", methods=["GET"])
@@ -114,7 +115,7 @@ def get_user_by_username(username):
             "user": {
                 "created_time": user["created_at"],
                 "username": user["username"],
-                "email": user["email"],
+                "email": mask_email(user["email"]),
                 "picture": user["picture"]
             }
         })
