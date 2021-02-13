@@ -26,7 +26,8 @@ class Config:
 
 
 class DevelopmentConfig(Config):
-    S3_IMAGE_BUCKET = "giare-test-post-image"
+    S3_POST_IMAGE_BUCKET = "giare-test-post-image"
+    S3_PROFILE_IMAGE_BUCKET = "giare-test-profile-image"
 
 
 class ProductionConfig(Config):

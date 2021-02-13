@@ -67,6 +67,16 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
 
+  ProfileImageBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub '${ServiceName}-${Environment}-profile-image'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        BlockPublicPolicy: false
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: false
+
 ######### Load Balancer ####################
   ALB:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer

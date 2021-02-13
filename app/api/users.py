@@ -1,10 +1,5 @@
-import io
-import uuid
-
 from flask import jsonify, request, current_app, url_for
 from werkzeug.utils import secure_filename
-from PIL import Image
-import boto3
 from botocore.exceptions import ClientError
 import requests
 
@@ -13,7 +8,7 @@ from ..models import Post, Image as ImageModel, Comment
 from .errors import bad_request, not_found, internal_error
 from .. import db
 from .auth import get_access_token
-from .utils import mask_email
+from .utils import mask_email, upload_image_to_s3
 
 
 @api.route("/users/<string:username>/posts", methods=["GET"])
@@ -44,34 +39,13 @@ def image_upload(username):
     if image.filename.rsplit('.', 1)[1].lower() not in current_app.config["UPLOAD_EXTENSIONS"]:
         return bad_request(f"Only accept file extensions: {current_app.config['UPLOAD_EXTENSIONS']}")
     
-    # resize the image
-    image = Image.open(io.BytesIO(image.read()))
-    image.thumbnail((150, 150))
-
-    # prepare for S3 upload
-    buffer = io.BytesIO()
-    image.save(buffer, image.format)
-    buffer.seek(0)
-    image_name = f"{uuid.uuid4().hex}.{image.format.lower()}"
-
-    s3_client = boto3.client("s3")
-    bucket = current_app.config["S3_IMAGE_BUCKET"]
-    aws_region = current_app.config["AWS_REGION"]
+    bucket = current_app.config["S3_POST_IMAGE_BUCKET"]
 
     try:
-        res = s3_client.put_object(
-            ACL="public-read",
-            Body=buffer,
-            Bucket=bucket,
-            Key=image_name,
-            Metadata={"username": username},
-            ContentType=f"image/{image.format.lower()}"
-        )
+        image_url = upload_image_to_s3(bucket, image, username)
     except ClientError as e:
         current_app.logger.error(e.response["Error"]["Message"])
-        return jsonify({"error": f"S3 error: {e.response['Error']['Code']} {e.response['Error']['Message']}"}), 500
-
-    image_url = f"https://{bucket}.s3-{aws_region}.amazonaws.com/{image_name}"
+        return internal_error("Unexpected error")
 
     image_model = ImageModel(author=username, image_url=image_url)
     db.session.add(image_model)
@@ -120,6 +94,52 @@ def get_user_by_username(username):
                 "email": mask_email(user["email"]),
                 "picture": user["picture"]
             }
+        })
+    except requests.RequestException as e:
+        current_app.logger.error(e)
+        return internal_error("Unexpecter error")
+
+
+@api.route("/users/profile-image", methods=["POST"])
+def profile_image_upload():
+    user_id = request.headers.get("userId")
+    username = request.headers.get("username")
+
+    current_app.logger.info(f"Uploading profile picture for user {username}")
+    if not request.files or "image" not in request.files:
+        return bad_request("No image was uploaded")
+    image = request.files["image"]
+    if image.filename == "":
+        return bad_request("No file was selected")
+    if image.filename.rsplit('.', 1)[1].lower() not in current_app.config["UPLOAD_EXTENSIONS"]:
+        return bad_request(f"Only accept file extensions: {current_app.config['UPLOAD_EXTENSIONS']}")
+    
+    try:
+        bucket = current_app.config["S3_PROFILE_IMAGE_BUCKET"]
+        image_url = upload_image_to_s3(bucket, image, username)
+    except ClientError as e:
+        current_app.logger.error(e.response["Error"]["Message"])
+        return internal_error("Unexpected error")
+    
+    try:
+        access_token = get_access_token()
+        res = requests.patch(
+            f"https://{current_app.config['AUTH0_API_DOMAIN']}/api/v2/users/{user_id}",
+            json={
+                "user_metadata": {
+                    "picture": image_url
+                }
+            },
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
+        )
+        if res.status_code == 404:
+            return not_found("User is not found")
+        res.raise_for_status()
+        return jsonify({
+            "message": "Profile image is uploaded successfully"
         })
     except requests.RequestException as e:
         current_app.logger.error(e)

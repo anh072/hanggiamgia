@@ -27,5 +27,5 @@ def not_found(message):
 def internal_error(message):
     current_app.logger.error(f"Internal error: {message}")
     response = jsonify({'error': 'internal server error', 'message': message})
-    response.status_code = 404
+    response.status_code = 500
     return response
