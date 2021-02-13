@@ -20,6 +20,7 @@ from .utils import mask_email
 def get_posts_by_username(username):
     page = request.args.get("page", 1, type=int)
     pagination = Post.query.filter_by(author=username) \
+        .order_by(Post.created_time.desc()) \
         .paginate(
             page, 
             per_page=current_app.config["POSTS_PER_PAGE"],
@@ -83,6 +84,7 @@ def get_commented_post_by_username(username):
     page = request.args.get("page", 1, type=int)
     pagination = Post.query.join(Comment, Post.id == Comment.post_id) \
         .filter(Comment.author == username) \
+        .order_by(Post.created_time.desc()) \
         .paginate(
             page, 
             per_page=current_app.config["POSTS_PER_PAGE"],
