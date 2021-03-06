@@ -23,7 +23,7 @@ def update_post_votes(id):
             return not_found("Post is not found")
         vote = Vote.query.filter_by(post_id=id, voter=username).first()
         if vote:
-            return bad_request(f"User {username} has already voted")
+            return bad_request(f"{username} đã bình chọn")
 
         action = request.json.get("vote_action")
         if action == "increment":
