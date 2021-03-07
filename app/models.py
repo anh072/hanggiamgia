@@ -28,7 +28,7 @@ class Category(db.Model):
             "Điện tử",
             "Thực phẩm",
             "Nhà cửa",
-            "Voucher",
+            "Voucher - Thẻ cào",
             "Thể thao - Dã ngoại",
             "Điện gia dụng",
             "Sách - Quà tặng",
