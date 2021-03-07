@@ -28,6 +28,7 @@ class Config:
 class DevelopmentConfig(Config):
     S3_POST_IMAGE_BUCKET = "giare-test-post-image"
     S3_PROFILE_IMAGE_BUCKET = "giare-test-profile-image"
+    REPORT_TOPIC = "arn:aws:sns:ap-southeast-2:838080186947:giare-test-reports-topic"
 
 
 class ProductionConfig(Config):

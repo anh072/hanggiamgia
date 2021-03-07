@@ -46,6 +46,9 @@ Parameters:
     Type: List<AWS::EC2::Subnet::Id>
     Default: 'subnet-043a3a74a388a5b27,subnet-09965c7f169d964ef'
 
+  ReportEmail:
+    Type: String
+
 Resources:
 ########## Log Group ########################
   LogGroup:
@@ -239,6 +242,11 @@ Resources:
             - !Sub
               - '${BucketArn}/*'
               - { BucketArn: !GetAtt 'ImageBucket.Arn' }
+          - Effect: Allow
+            Action:
+            - 'sns:Publish'
+            Resource:
+            - !Ref ReportTopic
 
   ContainerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -395,3 +403,12 @@ Resources:
       DBSubnetGroupDescription: Subnet group for database
       DBSubnetGroupName: !Sub '${ServiceName}-${Environment}-db-subnet-group'
       SubnetIds: !Ref DataSubnets
+
+######### SNS Topic for reports ###############
+  ReportTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Endpoint: !Ref ReportEmail
+        Protocol: email-json
+      TopicName: !Sub '${ServiceName}-${Environment}-reports-topic'

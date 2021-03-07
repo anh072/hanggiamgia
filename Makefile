@@ -10,6 +10,7 @@ COMPOSE_RUN_LINT = docker-compose -f docker-compose.build.yaml run --rm lint
 AUTH_TOKEN_FILE = auth_token
 ECR_REGISTRY ?= 838080186947.dkr.ecr.$(APP_REGION).amazonaws.com
 ECR_REPOSITORY = giare
+REPORT_EMAIL = anh.nguyen221193@gmail.com
 
 lint: dotenv
 	$(COMPOSE_RUN_LINT) yamllint .
@@ -54,7 +55,7 @@ _deployApp: _assumeRole
 		--stack-name "$(SERVICE_NAME)-$(ENV)" \
 		--capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
 		--no-fail-on-empty-changeset \
-		--parameter-overrides ServiceName=giare Environment=$(ENV) ImageTag=$(TAG)
+		--parameter-overrides ServiceName=giare Environment=$(ENV) ImageTag=$(TAG) ReportEmail=$(REPORT_EMAIL)
 
 _assumeRole:
 ifndef AWS_SESSION_TOKEN

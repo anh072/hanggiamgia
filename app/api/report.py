@@ -1,3 +1,6 @@
+import json
+
+import boto3
 from flask import current_app, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -7,6 +10,9 @@ from .errors import internal_error
 from .validations import ReportInput
 from .. import db
 from .errors import bad_request, internal_error
+
+
+sns_client = boto3.client("sns")
 
 
 @api.route("/reasons", methods=["GET"])
@@ -34,9 +40,14 @@ def report():
     report.reporter = reporter
     try:
         db.session.add(report)
+        sns_client.publish(
+            TopicArn=current_app.config["REPORT_TOPIC"],
+            Message=json.dumps(request.json),
+            Subject="GIARE-REPORT"
+        )
         db.session.commit()
         return jsonify(report.to_json()), 201
-    except SQLAlchemyError as e:
+    except Exception as e:
         current_app.logger.error(e)
         db.session.rollback()
         return internal_error("Encounter unexpected error")
