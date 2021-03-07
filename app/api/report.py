@@ -1,8 +1,7 @@
-import json
-
 import boto3
 from flask import current_app, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
+import simplejson as json
 
 from . import api
 from ..models import Reason, Report
@@ -42,7 +41,7 @@ def report():
         db.session.add(report)
         sns_client.publish(
             TopicArn=current_app.config["REPORT_TOPIC"],
-            Message=json.dumps(request.json),
+            Message=json.dumps(request.json, ensure_ascii=False, encoding="utf-8"),
             Subject="GIARE-REPORT"
         )
         db.session.commit()
