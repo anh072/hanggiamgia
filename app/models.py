@@ -44,6 +44,7 @@ class Category(db.Model):
             if not existing_category:
                 new_category = Category(name=c)
                 db.session.add(new_category)
+        Category.query.filter_by(name="Voucher").delete()
         db.session.commit()
 
 
