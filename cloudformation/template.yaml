@@ -118,12 +118,12 @@ Resources:
       HealthCheckPath: /api/v1/healthcheck
       HealthCheckPort: 5000
       HealthCheckProtocol: HTTP
-      HealthyThresholdCount: 5
+      HealthyThresholdCount: 3
       Name: !Sub '${ServiceName}-${Environment}-tg'
       Port: 5000
       Protocol: HTTP
       TargetType: ip
-      UnhealthyThresholdCount: 10
+      UnhealthyThresholdCount: 5
       VpcId: !Ref VPC
 
   ALBListener:
