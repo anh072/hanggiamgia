@@ -91,6 +91,7 @@ def delete_post(id):
         db.session.rollback()
         return internal_error("Encounter unexpected error")
 
+
 @api.route("/posts/search", methods=["GET"])
 def search_posts():
     current_app.logger.info("Searching for post")
@@ -139,3 +140,11 @@ def search_posts():
     })
 
 
+@api.route("/posts/max-id", methods=["GET"])
+def get_post_max_id():
+    current_app.logger.info(f"Retrieving maximum post id")
+    post = Post.query.order_by(Post.id.desc()).limit(1).first()
+    print(post)
+    return jsonify({
+        "id": post.id
+    })
