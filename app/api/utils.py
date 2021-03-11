@@ -17,7 +17,7 @@ def mask_email(email):
 def upload_image_to_s3(bucket, image, username):
     # resize the image
     image = Image.open(io.BytesIO(image.read()))
-    image.thumbnail((150, 150))
+    image.thumbnail((500, 500))
 
     # prepare for S3 upload
     buffer = io.BytesIO()
