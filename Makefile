@@ -2,7 +2,7 @@
 SERVICE_NAME = giare
 ENV ?= test
 AWS_ROLE ?= arn:aws:iam::838080186947:role/deploy-role
-APP_REGION = ap-southeast-2
+APP_REGION = us-east-1
 
 COMPOSE_RUN_AWS = docker-compose -f docker-compose.build.yaml run --rm aws
 COMPOSE_RUN_LINT = docker-compose -f docker-compose.build.yaml run --rm lint

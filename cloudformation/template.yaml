@@ -173,24 +173,24 @@ Resources:
           ValueFrom:
             !Sub
             - '${DbSecretArn}:dbname::'
-            - { DbSecretArn: !Ref RDSInstanceRotationSecret }
+            - { DbSecretArn: 'arn:aws:secretsmanager:us-east-1:838080186947:secret:test/giare/database-GIzVbH' }
         - Name: DATABASE_USERNAME
           ValueFrom:
             !Sub
             - '${DbSecretArn}:username::'
-            - { DbSecretArn: !Ref RDSInstanceRotationSecret }
+            - { DbSecretArn: 'arn:aws:secretsmanager:us-east-1:838080186947:secret:test/giare/database-GIzVbH' }
         - Name: DATABASE_PASSWORD
           ValueFrom:
             !Sub
             - '${DbSecretArn}:password::'
-            - { DbSecretArn: !Ref RDSInstanceRotationSecret }
+            - { DbSecretArn: 'arn:aws:secretsmanager:us-east-1:838080186947:secret:test/giare/database-GIzVbH' }
         - Name: DATABASE_HOST
           ValueFrom:
             !Sub
             - '${DbSecretArn}:host::'
-            - { DbSecretArn: !Ref RDSInstanceRotationSecret }
+            - { DbSecretArn: 'arn:aws:secretsmanager:us-east-1:838080186947:secret:test/giare/database-GIzVbH' }
         - Name: CLIENT_SECRET
-          ValueFrom: 'arn:aws:secretsmanager:ap-southeast-2:838080186947:secret:/test/client-secret/giare-kNG4US:client-secret::'
+          ValueFrom: 'arn:aws:secretsmanager:us-east-1:838080186947:secret:/test/client-secret/giare-kNG4US:client-secret::'
 
   ExecutionRole:
     Type: AWS::IAM::Role
@@ -318,91 +318,6 @@ Resources:
         ScaleInCooldown: 10
         ScaleOutCooldown: 10
         TargetValue: 60
-
-########## Database resources ###############
-
-  RDSInstanceRotationSecret:
-    Type: AWS::SecretsManager::Secret
-    Properties:
-      Description: 'This is my rds instance secret'
-      Name: !Sub '/${Environment}/database/giare'
-      GenerateSecretString:
-        SecretStringTemplate: !Sub '{"username": "${Environment}_giare"}'
-        GenerateStringKey: 'password'
-        PasswordLength: 16
-        ExcludeCharacters: '"@/\'
-
-  SecretRDSInstanceAttachment:
-    Type: AWS::SecretsManager::SecretTargetAttachment
-    Properties:
-      SecretId: !Ref RDSInstanceRotationSecret
-      TargetId: !Ref Database
-      TargetType: AWS::RDS::DBInstance
-
-  SecretRotation:
-    Type: AWS::SecretsManager::RotationSchedule
-    DependsOn:
-    - SecretRDSInstanceAttachment
-    Properties:
-      SecretId: !Ref RDSInstanceRotationSecret
-      HostedRotationLambda:
-        RotationType: PostgreSQLSingleUser
-        RotationLambdaName: SecretsManagerRotation
-        VpcSecurityGroupIds: !GetAtt 'DbSecurityGroup.GroupId'
-        VpcSubnetIds: !Join [ ',', !Ref DataSubnets ]
-      RotationRules:
-        AutomaticallyAfterDays: 30
-
-  Database:
-    Type: AWS::RDS::DBInstance
-    Properties:
-      AllocatedStorage: 20
-      BackupRetentionPeriod: 14
-      DBInstanceClass: !Ref DbInstanceClass
-      DBInstanceIdentifier: giare
-      DBSubnetGroupName: !Ref DbSubnetGroup
-      DBName: app
-      Engine: postgres
-      MasterUsername: !Sub '{{resolve:secretsmanager:${RDSInstanceRotationSecret}::username}}'
-      MasterUserPassword: !Sub '{{resolve:secretsmanager:${RDSInstanceRotationSecret}::password}}'
-      MultiAZ: true
-      Port: 5432
-      PubliclyAccessible: false
-      StorageType: standard
-      VPCSecurityGroups:
-      - !GetAtt 'DbSecurityGroup.GroupId'
-
-  DbSecurityGroup:
-    Type: AWS::EC2::SecurityGroup
-    Properties:
-      GroupDescription: Security group for database
-      GroupName: !Sub '${ServiceName}-${Environment}-db-sg'
-      VpcId: !Ref VPC
-
-  DbSGIngressLambda:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId: !Ref DbSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      SourceSecurityGroupId: !Ref DbSecurityGroup
-
-  DbSGIngressApp:
-    Type: 'AWS::EC2::SecurityGroupIngress'
-    Properties:
-      GroupId: !Ref DbSecurityGroup
-      IpProtocol: tcp
-      FromPort: 5432
-      ToPort: 5432
-      SourceSecurityGroupId: !GetAtt 'ContainerSecurityGroup.GroupId'
-
-  DbSubnetGroup:
-    Type: AWS::RDS::DBSubnetGroup
-    Properties:
-      DBSubnetGroupDescription: Subnet group for database
-      DBSubnetGroupName: !Sub '${ServiceName}-${Environment}-db-subnet-group'
-      SubnetIds: !Ref DataSubnets
 
 ######### SNS Topic for reports ###############
   ReportTopic:
